@@ -2,8 +2,6 @@
 import pandas as pd
 import numpy as np
 
-# Plotting and visualization
-
 # Yahoo Finance data fetching
 import yfinance as yf
 
@@ -25,7 +23,7 @@ warnings.filterwarnings('ignore')
 class BankingDataProcessor:
     """
     A comprehensive data processor for banking systemic risk analysis
-    using the accurate methodology provided.
+    using accurate Extreme Value Theory methodology.
     """
     
     def __init__(self):
@@ -99,7 +97,7 @@ class BankingDataProcessor:
             # Switzerland → SMI
             'UBS':                   '^SSMI',
 
-            # Netherlands → AEX  (for ING)
+            # Netherlands → AEX
             'ING':                   '^AEX',
 
             # China → Shanghai Composite
@@ -126,7 +124,7 @@ class BankingDataProcessor:
             '^SSMI':     'SMI',
             '^N225':     'Nikkei 225',
             '000001.SS': 'Shanghai Composite',
-            '^AEX':       'AEX',
+            '^AEX':      'AEX',
         }
 
         # Region mapping
@@ -206,13 +204,17 @@ class BankingDataProcessor:
         # Download daily Close prices
         raw = yf.download(selected_tickers, start=start_date, end=end_date)['Close']
         
+        # Handle single ticker case
+        if len(selected_tickers) == 1:
+            raw = raw.to_frame(selected_tickers[0])
+        
         # Find & drop any tickers with *no* data at all
         no_data = [t for t in raw.columns if raw[t].dropna().empty]
         if no_data:
             print("Dropping (no data):", no_data)
         
         # Define price_data as the cleaned raw data
-        price_data = raw.drop(columns=no_data)
+        price_data = raw.drop(columns=no_data) if no_data else raw
         
         # Map tickers to bank names
         price_data.rename(columns=self.bank_dict, inplace=True)
@@ -245,11 +247,15 @@ class BankingDataProcessor:
         index_tickers = list(set(self.index_map.values()))
         raw_idx = yf.download(index_tickers, start=start_date, end=end_date)['Close']
         
+        # Handle single index case
+        if len(index_tickers) == 1:
+            raw_idx = raw_idx.to_frame(index_tickers[0])
+        
         # Drop index tickers with no data at all
         no_data_idx = [t for t in raw_idx.columns if raw_idx[t].dropna().empty]
         if no_data_idx:
             print("Dropping indices with no data:", no_data_idx)
-        raw_idx = raw_idx.drop(columns=no_data_idx)
+        raw_idx = raw_idx.drop(columns=no_data_idx) if no_data_idx else raw_idx
         
         # Weekly resample & compute log‐returns
         weekly_idx_prices = (
@@ -282,44 +288,133 @@ class BankingDataProcessor:
         self.combined_data = combined
         return combined
     
-    # Metric functions
-    def rolling_var(self, x, alpha=0.95):
-        """Calculate rolling Value at Risk"""
-        return -np.percentile(x, 100*(1-alpha))
-    
-    def hill_estimator(self, x, threshold_quantile=0.99, min_excesses=5):
-        """
-        Estimate the tail index via Hill, but only at the
-        largest threshold_quantile such that at least min_excesses are in the tail.
-        """
-        # sort unique quantiles from, say, 90% up to desired level
-        candidate_q = np.linspace(0.90, threshold_quantile, 50)
-        for q in reversed(candidate_q):
-            p = 1 - q
-            u = np.quantile(x, p)
-            losses = -x[x < u]
-            losses = losses[losses > 0]
-            if len(losses) >= min_excesses:
-                min_loss = losses.min()
-                return np.mean(np.log(losses / min_loss))
-        # if even 90% gives too few points, fall back or return NaN
-        return np.nan
-    
-    def tail_dependence(self, x, y, u=0.95):
-        """Calculate tail dependence coefficient"""
-        qx, qy = np.quantile(x, u), np.quantile(y, u)
-        mask = x < qx   # left‐tail dependence (for losses)
-        return np.sum(y[mask] < qy) / np.sum(mask) if np.sum(mask)>0 else np.nan
-    
-    def systemic_beta(self, x, y, u=0.95):
-        """Calculate systemic beta"""
-        VaR_x = self.rolling_var(x, alpha=u)
-        VaR_y = self.rolling_var(y, alpha=u)
-        xi_y  = self.hill_estimator(y, threshold_quantile=u)
-        tau   = self.tail_dependence(x, y, u=u)
-        if xi_y is None or xi_y==0 or np.isnan(tau):
+    # Accurate EVT metric functions
+    def calculate_var(self, returns, alpha=0.95):
+        """Calculate Value at Risk using empirical quantile"""
+        if len(returns) == 0:
             return np.nan
-        return (tau ** (1.0/xi_y)) * (VaR_x / VaR_y)
+        # VaR is the negative of the quantile (since we want losses)
+        return -np.percentile(returns, (1-alpha)*100)
+    
+    def hill_estimator(self, returns, threshold_quantile=0.95, min_excesses=10):
+        """
+        Accurate Hill estimator for tail index estimation
+        
+        Parameters:
+        - returns: array of returns
+        - threshold_quantile: quantile for threshold selection
+        - min_excesses: minimum number of exceedances required
+        
+        Returns:
+        - hill_estimate: tail index estimate
+        """
+        if len(returns) < min_excesses:
+            return np.nan
+            
+        # Convert returns to losses (negative returns)
+        losses = -returns
+        
+        # Remove any non-positive losses
+        losses = losses[losses > 0]
+        
+        if len(losses) < min_excesses:
+            return np.nan
+        
+        # Sort losses in descending order
+        sorted_losses = np.sort(losses)[::-1]
+        
+        # Find threshold based on quantile
+        threshold = np.quantile(losses, threshold_quantile)
+        
+        # Get exceedances above threshold
+        exceedances = sorted_losses[sorted_losses > threshold]
+        
+        if len(exceedances) < min_excesses:
+            # Try progressively lower thresholds
+            for q in np.arange(threshold_quantile - 0.01, 0.85, -0.01):
+                threshold = np.quantile(losses, q)
+                exceedances = sorted_losses[sorted_losses > threshold]
+                if len(exceedances) >= min_excesses:
+                    break
+            
+        if len(exceedances) < min_excesses:
+            return np.nan
+        
+        # Calculate Hill estimator
+        k = len(exceedances)
+        log_ratios = np.log(exceedances / threshold)
+        hill_estimate = np.mean(log_ratios)
+        
+        return max(hill_estimate, 0.01)  # Ensure positive value
+    
+    def tail_dependence_coefficient(self, x, y, threshold_quantile=0.95):
+        """
+        Calculate tail dependence coefficient for left tail (losses)
+        
+        Parameters:
+        - x, y: arrays of returns
+        - threshold_quantile: quantile for threshold selection
+        
+        Returns:
+        - tau: tail dependence coefficient
+        """
+        if len(x) != len(y) or len(x) == 0:
+            return np.nan
+        
+        # Calculate thresholds for both series (using losses)
+        x_threshold = np.quantile(x, 1 - threshold_quantile)  # Left tail threshold
+        y_threshold = np.quantile(y, 1 - threshold_quantile)  # Left tail threshold
+        
+        # Count joint exceedances in left tail (losses)
+        x_exceeds = x <= x_threshold
+        y_exceeds = y <= y_threshold
+        joint_exceeds = x_exceeds & y_exceeds
+        
+        # Calculate conditional probability
+        if np.sum(x_exceeds) == 0:
+            return np.nan
+        
+        tau = np.sum(joint_exceeds) / np.sum(x_exceeds)
+        
+        return min(max(tau, 0.0), 1.0)  # Ensure tau is in [0,1]
+    
+    def systemic_beta(self, bank_returns, market_returns, alpha=0.95):
+        """
+        Calculate systemic beta using accurate EVT methodology
+        
+        Parameters:
+        - bank_returns: array of bank returns
+        - market_returns: array of market returns
+        - alpha: confidence level
+        
+        Returns:
+        - beta_t: systemic beta coefficient
+        """
+        if len(bank_returns) != len(market_returns) or len(bank_returns) == 0:
+            return np.nan
+        
+        # Calculate components
+        var_bank = self.calculate_var(bank_returns, alpha)
+        var_market = self.calculate_var(market_returns, alpha)
+        
+        # Use threshold quantile corresponding to alpha
+        threshold_quantile = alpha
+        
+        hill_market = self.hill_estimator(market_returns, threshold_quantile)
+        tau = self.tail_dependence_coefficient(bank_returns, market_returns, threshold_quantile)
+        
+        # Check for valid values
+        if (np.isnan(var_bank) or np.isnan(var_market) or 
+            np.isnan(hill_market) or np.isnan(tau) or 
+            var_market == 0 or hill_market == 0):
+            return np.nan
+        
+        # Calculate systemic beta
+        try:
+            beta_t = (tau ** (1.0 / hill_market)) * (var_bank / var_market)
+            return max(beta_t, 0.0)  # Ensure non-negative
+        except (ZeroDivisionError, OverflowError):
+            return np.nan
     
     def calculate_rolling_metrics(self, window_size=52):
         """
@@ -337,32 +432,67 @@ class BankingDataProcessor:
         
         results_95 = []
         results_99 = []
-        dates = self.combined_data.index[window_size:]   # start at week 53
         
-        for date in dates:
-            window = self.combined_data.loc[:date].tail(window_size)
-            for bank in self.weekly_returns.columns:
-                idx = self.index_map[bank]  # e.g. 'JPMorgan Chase' → 'S&P 500'
-                x_b = window[bank].values
-                x_i = window[self.idx_name_map[idx]].values
-
+        # Get bank columns
+        bank_columns = [col for col in self.combined_data.columns if col in self.weekly_returns.columns]
+        
+        # Calculate metrics for each date and bank
+        for i in range(window_size, len(self.combined_data)):
+            end_date = self.combined_data.index[i]
+            start_idx = i - window_size
+            window_data = self.combined_data.iloc[start_idx:i+1]
+            
+            for bank in bank_columns:
+                # Get corresponding market index
+                if bank not in self.index_map:
+                    continue
+                    
+                market_idx_ticker = self.index_map[bank]
+                if market_idx_ticker not in self.idx_name_map:
+                    continue
+                    
+                market_name = self.idx_name_map[market_idx_ticker]
+                
+                if market_name not in window_data.columns:
+                    continue
+                
+                bank_returns = window_data[bank].dropna().values
+                market_returns = window_data[market_name].dropna().values
+                
+                # Ensure we have enough data
+                if len(bank_returns) < 30 or len(market_returns) < 30:
+                    continue
+                
+                # Calculate metrics for 95% confidence
+                var_95 = self.calculate_var(bank_returns, alpha=0.95)
+                hill_95 = self.hill_estimator(bank_returns, threshold_quantile=0.95)
+                tau_95 = self.tail_dependence_coefficient(bank_returns, market_returns, threshold_quantile=0.95)
+                beta_95 = self.systemic_beta(bank_returns, market_returns, alpha=0.95)
+                
                 results_95.append({
-                    'Date':    date,
-                    'Bank':    bank,
-                    'Region':  self.region_map.get(bank, 'Unknown'),
-                    'VaR_95':  self.rolling_var(x_b, alpha=0.95),
-                    'Hill_95': self.hill_estimator(x_b, threshold_quantile=0.95),
-                    'Tau_95':  self.tail_dependence(x_b, x_i, u=0.95),
-                    'Beta_T':  self.systemic_beta(x_b, x_i, u=0.95)
+                    'Date': end_date,
+                    'Bank': bank,
+                    'Region': self.region_map.get(bank, 'Unknown'),
+                    'VaR_95': var_95,
+                    'Hill_95': hill_95,
+                    'Tau_95': tau_95,
+                    'Beta_T': beta_95
                 })
+                
+                # Calculate metrics for 99% confidence
+                var_99 = self.calculate_var(bank_returns, alpha=0.99)
+                hill_99 = self.hill_estimator(bank_returns, threshold_quantile=0.99)
+                tau_99 = self.tail_dependence_coefficient(bank_returns, market_returns, threshold_quantile=0.99)
+                beta_99 = self.systemic_beta(bank_returns, market_returns, alpha=0.99)
+                
                 results_99.append({
-                    'Date':    date,
-                    'Bank':    bank,
-                    'Region':  self.region_map.get(bank, 'Unknown'),
-                    'VaR_99':  self.rolling_var(x_b, alpha=0.99),
-                    'Hill_99': self.hill_estimator(x_b, threshold_quantile=0.99),
-                    'Tau_99':  self.tail_dependence(x_b, x_i, u=0.99),
-                    'Beta_T':  self.systemic_beta(x_b, x_i, u=0.99)
+                    'Date': end_date,
+                    'Bank': bank,
+                    'Region': self.region_map.get(bank, 'Unknown'),
+                    'VaR_99': var_99,
+                    'Hill_99': hill_99,
+                    'Tau_99': tau_99,
+                    'Beta_T': beta_99
                 })
         
         self.results_95 = pd.DataFrame(results_95)
@@ -381,15 +511,15 @@ class BankingDataProcessor:
         - latest_metrics: DataFrame with latest metrics
         """
         if confidence_level == 0.95:
-            if self.results_95 is None:
+            if self.results_95 is None or self.results_95.empty:
                 raise ValueError("Must calculate rolling metrics first")
             latest_date = self.results_95['Date'].max()
-            return self.results_95[self.results_95['Date'] == latest_date]
+            return self.results_95[self.results_95['Date'] == latest_date].reset_index(drop=True)
         elif confidence_level == 0.99:
-            if self.results_99 is None:
+            if self.results_99 is None or self.results_99.empty:
                 raise ValueError("Must calculate rolling metrics first")
             latest_date = self.results_99['Date'].max()
-            return self.results_99[self.results_99['Date'] == latest_date]
+            return self.results_99[self.results_99['Date'] == latest_date].reset_index(drop=True)
         else:
             raise ValueError("Confidence level must be 0.95 or 0.99")
     
@@ -399,7 +529,7 @@ class BankingDataProcessor:
         
         Parameters:
         - bank_name: name of the bank
-        - metric: metric to retrieve ('Beta_T', 'VaR_95', 'VaR_99', 'Hill_95', 'Hill_99', 'Tau_95', 'Tau_99')
+        - metric: metric to retrieve
         - confidence_level: 0.95 or 0.99
         
         Returns:
@@ -447,11 +577,15 @@ class BankingDataProcessor:
         latest_data = data[data['Date'] == latest_date]
         
         # Calculate summary statistics
+        var_col = 'VaR_95' if confidence_level == 0.95 else 'VaR_99'
+        hill_col = 'Hill_95' if confidence_level == 0.95 else 'Hill_99'
+        tau_col = 'Tau_95' if confidence_level == 0.95 else 'Tau_99'
+        
         summary = latest_data.groupby('Region').agg({
-            'Beta_T': ['mean', 'std', 'min', 'max'],
-            'VaR_95' if confidence_level == 0.95 else 'VaR_99': ['mean', 'std', 'min', 'max'],
-            'Hill_95' if confidence_level == 0.95 else 'Hill_99': ['mean', 'std', 'min', 'max'],
-            'Tau_95' if confidence_level == 0.95 else 'Tau_99': ['mean', 'std', 'min', 'max']
+            'Beta_T': ['mean', 'std', 'min', 'max', 'count'],
+            var_col: ['mean', 'std', 'min', 'max'],
+            hill_col: ['mean', 'std', 'min', 'max'],
+            tau_col: ['mean', 'std', 'min', 'max']
         }).round(4)
         
         return summary
