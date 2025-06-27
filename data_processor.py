@@ -3,8 +3,6 @@ import pandas as pd
 import numpy as np
 
 # Plotting and visualization
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 # Yahoo Finance data fetching
 import yfinance as yf
@@ -13,7 +11,6 @@ import yfinance as yf
 import scipy.stats as stats
 from scipy.stats import genpareto  # Generalized Pareto for EVT
 from scipy.stats import norm
-from statsmodels.distributions.empirical_distribution import ECDF
 
 # For estimating tail dependence
 from scipy.stats import rankdata
