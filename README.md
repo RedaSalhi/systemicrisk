@@ -61,6 +61,38 @@ cd systemicrisk
 pip install -r requirements.txt
 ```
 
+### 🔧 Troubleshooting SciPy Import Error
+
+If you encounter the error:
+```
+ImportError: cannot import name '_lazywhere' from 'scipy._lib._util'
+```
+
+This is a known compatibility issue with Python 3.13 and newer versions of SciPy. Here are the solutions:
+
+#### Option 1: Automatic Fix (Recommended)
+Run the provided fix script:
+```bash
+python fix_scipy_issue.py
+```
+
+#### Option 2: Manual Fix
+Use the fixed requirements file:
+```bash
+pip install -r requirements-fixed.txt
+```
+
+#### Option 3: Manual Package Installation
+```bash
+pip uninstall -y scipy numpy pandas scikit-learn statsmodels
+pip install numpy==1.25.2
+pip install scipy==1.11.4
+pip install pandas==2.1.4
+pip install scikit-learn==1.3.2
+pip install statsmodels==0.14.0
+pip install -r requirements.txt
+```
+
 ## 🚀 Usage
 
 ### Interactive Dashboard
@@ -160,9 +192,12 @@ systemicrisk/
 ├── data_processor.py      # Core data processing module
 ├── dashboard.py          # Main Streamlit dashboard
 ├── example_usage.py      # Example script
-├── app.py               # EVT methodology explainer
-├── methodology.py       # Methodology documentation
+├── app.py               # Main landing page
+├── methodology.py       # EVT methodology explainer
+├── machinelearning.py   # ML early warning system
 ├── requirements.txt     # Python dependencies
+├── requirements-fixed.txt # Fixed versions for compatibility
+├── fix_scipy_issue.py   # Automatic fix script
 └── README.md           # This file
 ```
 
