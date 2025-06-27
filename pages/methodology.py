@@ -9,7 +9,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Import our data processor
-from data_processor import BankingDataProcessor
+from data_processor import BankingDataProcessor, process_banking_data
 
 # Page configuration
 st.set_page_config(
