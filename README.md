@@ -68,7 +68,14 @@ If you encounter the error:
 ImportError: cannot import name '_lazywhere' from 'scipy._lib._util'
 ```
 
-This is a known compatibility issue with Python 3.13 and newer versions of SciPy. Here are the solutions:
+This is a known compatibility issue with Python 3.13 and newer versions of SciPy.
+
+Building SciPy on Python 3.13 requires a Fortran compiler such as `gfortran`. You can install it on Debian-based systems with:
+```bash
+sudo apt-get install gfortran
+```
+
+Here are the solutions:
 
 #### Option 1: Automatic Fix (Recommended)
 Run the provided fix script:
