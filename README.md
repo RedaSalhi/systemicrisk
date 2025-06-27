@@ -97,9 +97,9 @@ pip install -r requirements.txt
 
 ### Interactive Dashboard
 
-Run the main dashboard:
+Run the main dashboard (or start from the landing page with `streamlit run app.py`):
 ```bash
-streamlit run dashboard.py
+streamlit run pages/dashboard.py
 ```
 
 The dashboard provides:
@@ -189,12 +189,13 @@ The analysis uses Extreme Value Theory with:
 
 ```
 systemicrisk/
+├── pages/
+│   ├── dashboard.py          # Main Streamlit dashboard
+│   ├── methodology.py       # EVT methodology explainer
+│   └── machinelearning.py   # ML early warning system
 ├── data_processor.py      # Core data processing module
-├── dashboard.py          # Main Streamlit dashboard
 ├── example_usage.py      # Example script
 ├── app.py               # Main landing page
-├── methodology.py       # EVT methodology explainer
-├── machinelearning.py   # ML early warning system
 ├── requirements.txt     # Python dependencies
 ├── requirements-fixed.txt # Fixed versions for compatibility
 ├── fix_scipy_issue.py   # Automatic fix script

@@ -224,9 +224,9 @@ st.sidebar.markdown("## 🧭 Navigation")
 if st.sidebar.button("🏠 Home", key="nav_home"):
     st.switch_page("app.py")
 if st.sidebar.button("📊 Dashboard", key="nav_dashboard"):
-    st.switch_page("dashboard.py")
+    st.switch_page('pages/dashboard.py')
 if st.sidebar.button("📚 Methodology", key="nav_methodology"):
-    st.switch_page("methodology.py")
+    st.switch_page('pages/methodology.py')
 
 # Initialize session state
 if 'ml_data_loaded' not in st.session_state:
