@@ -3,3 +3,8 @@ pandas
 numpy
 plotly
 scipy
+yfinance
+matplotlib
+seaborn
+statsmodels
+scikit-learn
