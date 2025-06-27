@@ -231,9 +231,9 @@ st.sidebar.markdown("## 🧭 Navigation")
 if st.sidebar.button("🏠 Home", key="nav_home"):
     st.switch_page("app.py")
 if st.sidebar.button("📊 Dashboard", key="nav_dashboard"):
-    st.switch_page("dashboard.py")
+    st.switch_page('pages/dashboard.py')
 if st.sidebar.button("⚠️ Early Warning", key="nav_ml"):
-    st.switch_page("machinelearning.py")
+    st.switch_page('pages/machinelearning.py')
 
 # Generate sample banking data
 @st.cache_data

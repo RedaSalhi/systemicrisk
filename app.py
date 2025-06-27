@@ -246,11 +246,11 @@ st.markdown("""
 # Navigation
 st.sidebar.markdown("## 🧭 Navigation")
 if st.sidebar.button("📊 Dashboard", key="nav_dashboard", use_container_width=True):
-    st.switch_page("dashboard.py")
+    st.switch_page('pages/dashboard.py')
 if st.sidebar.button("📚 Methodology", key="nav_methodology", use_container_width=True):
-    st.switch_page("methodology.py")
+    st.switch_page('pages/methodology.py')
 if st.sidebar.button("⚠️ Early Warning", key="nav_ml", use_container_width=True):
-    st.switch_page("machinelearning.py")
+    st.switch_page('pages/machinelearning.py')
 
 # Header
 st.markdown('<h1 class="main-header">🏦 Systemic Risk Analysis Platform</h1>', unsafe_allow_html=True)
@@ -309,15 +309,15 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
     if st.button("📊 Launch Dashboard", key="quick_dashboard", use_container_width=True):
-        st.switch_page("dashboard.py")
+        st.switch_page('pages/dashboard.py')
 
 with col2:
     if st.button("📚 Learn Methodology", key="quick_methodology", use_container_width=True):
-        st.switch_page("methodology.py")
+        st.switch_page('pages/methodology.py')
 
 with col3:
     if st.button("⚠️ Test Early Warning", key="quick_ml", use_container_width=True):
-        st.switch_page("machinelearning.py")
+        st.switch_page('pages/machinelearning.py')
 
 # System overview
 st.markdown("## 📈 System Overview")
