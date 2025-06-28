@@ -880,7 +880,7 @@ with tab6:
         demo_banks = st.multiselect(
             "Choose banks to analyze:",
             options=processor.get_available_banks(),
-            default=['JPMorgan Chase', 'HSBC', 'Deutsche Bank'],
+            default=['JPMorgan Chase', 'HSBC Holdings', 'Deutsche Bank'],
             max_selections=5
         )
         
