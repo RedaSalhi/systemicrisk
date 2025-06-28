@@ -7,8 +7,8 @@ from scipy.stats import genpareto, norm
 import sys
 import os
 
-# Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Remove the problematic import - methodology page is self-contained
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 st.set_page_config(
     page_title="Methodology",
