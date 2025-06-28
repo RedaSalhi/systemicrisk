@@ -15,9 +15,36 @@ import xgboost as xgb
 import sys
 import os
 
-# Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from data_processor import CRISIS_PERIODS, REGION_MAP
+# Try to import data_processor, if fails, define constants locally
+try:
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from data_processor import CRISIS_PERIODS, REGION_MAP
+except ImportError:
+    # Define constants locally if import fails
+    CRISIS_PERIODS = {
+        'eurozone_crisis': (pd.Timestamp('2011-07-01'), pd.Timestamp('2012-12-31')),
+        'china_correction': (pd.Timestamp('2015-06-01'), pd.Timestamp('2016-02-29')),
+        'covid_crash': (pd.Timestamp('2020-02-01'), pd.Timestamp('2020-05-31')),
+        'ukraine_war': (pd.Timestamp('2022-02-01'), pd.Timestamp('2022-06-30')),
+        'banking_stress_2023': (pd.Timestamp('2023-03-01'), pd.Timestamp('2023-05-31'))
+    }
+    
+    REGION_MAP = {
+        'JPMorgan Chase': 'Americas', 'Citigroup': 'Americas', 'Bank of America': 'Americas',
+        'Wells Fargo': 'Americas', 'Goldman Sachs': 'Americas', 'Morgan Stanley': 'Americas',
+        'Bank of New York Mellon': 'Americas', 'State Street': 'Americas',
+        'Royal Bank of Canada': 'Americas', 'Toronto Dominion': 'Americas',
+        'HSBC': 'Europe', 'Barclays': 'Europe', 'BNP Paribas': 'Europe',
+        'Groupe Crédit Agricole': 'Europe', 'ING': 'Europe', 'Deutsche Bank': 'Europe',
+        'Santander': 'Europe', 'Société Générale': 'Europe', 'UBS': 'Europe',
+        'Standard Chartered': 'Europe', 'Agricultural Bank of China': 'Asia/Pacific',
+        'Bank of China': 'Asia/Pacific', 'China Construction Bank': 'Asia/Pacific',
+        'ICBC': 'Asia/Pacific', 'Bank of Communications': 'Asia/Pacific',
+        'Mitsubishi UFJ FG': 'Asia/Pacific', 'Mizuho FG': 'Asia/Pacific',
+        'Sumitomo Mitsui FG': 'Asia/Pacific'
+    }
 
 st.set_page_config(
     page_title="Machine Learning",
