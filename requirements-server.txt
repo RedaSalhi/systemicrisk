@@ -1,0 +1,13 @@
+# Server-compatible requirements (no compilation needed)
+# These versions have pre-compiled wheels for Python 3.13
+streamlit==1.46.1
+pandas==2.3.0
+numpy==2.3.1
+plotly==6.2.0
+scipy==1.13.0
+yfinance==0.2.28
+matplotlib==3.8.2
+seaborn==0.13.0
+statsmodels==0.14.1
+scikit-learn==1.4.0
+xgboost==2.0.3 

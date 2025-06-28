@@ -27,39 +27,41 @@ class BankingDataProcessor:
     """
     
     def __init__(self):
-        # Bank dictionary with ticker to name mapping
+        # Bank dictionary with ticker to name mapping (updated with reliable symbols)
         self.bank_dict = {
-            # Americas
+            # Americas - Major US Banks (using more reliable symbols)
             'JPM': 'JPMorgan Chase',
-            'C': 'Citigroup',
+            'C': 'Citigroup', 
             'BAC': 'Bank of America',
             'WFC': 'Wells Fargo',
             'GS': 'Goldman Sachs',
             'MS': 'Morgan Stanley',
             'BK': 'Bank of New York Mellon',
             'STT': 'State Street',
-            'RY': 'Royal Bank of Canada',
-            'TD': 'Toronto Dominion',
-            # Europe
-            'HSBA.L': 'HSBC',
-            'BARC.L': 'Barclays',
-            'BNP.PA': 'BNP Paribas',
-            'ACA.PA': 'Groupe Crédit Agricole',
-            'INGA.AS': 'ING',
-            'DBK.DE': 'Deutsche Bank',
-            'SAN.MC': 'Santander',
-            'GLE.PA': 'Société Générale',
-            'UBSG.SW': 'UBS',
-            'STAN.L': 'Standard Chartered',
-            # Asia/Pacific
-            '1288.HK': 'Agricultural Bank of China',
-            '3988.HK': 'Bank of China',
-            '0939.HK': 'China Construction Bank',
-            '1398.HK': 'ICBC',
-            '3328.HK': 'Bank of Communications',
-            '8306.T': 'Mitsubishi UFJ FG',
-            '8411.T': 'Mizuho FG',
-            '8316.T': 'Sumitomo Mitsui FG'
+            'RY.TO': 'Royal Bank of Canada',
+            'TD.TO': 'Toronto Dominion',
+            
+            # Europe - Major European Banks
+            'HSBC': 'HSBC Holdings',
+            'BCS': 'Barclays',
+            'BNPQY': 'BNP Paribas',
+            'CRARY': 'Groupe Crédit Agricole',
+            'ING': 'ING Group',
+            'DB': 'Deutsche Bank',
+            'SAN': 'Santander',
+            'SCGLY': 'Société Générale',
+            'UBS': 'UBS Group',
+            'SCBFF': 'Standard Chartered',
+            
+            # Asia/Pacific - Major Asian Banks
+            'ACGBY': 'Agricultural Bank of China',
+            'BACHY': 'Bank of China',
+            'CICHY': 'China Construction Bank',
+            'IDCBY': 'ICBC',
+            'BKFCF': 'Bank of Communications',
+            'MUFG': 'Mitsubishi UFJ FG',
+            'MFG': 'Mizuho FG',
+            'SMFG': 'Sumitomo Mitsui FG'
         }
         
         # Index mapping for each bank
@@ -87,7 +89,7 @@ class BankingDataProcessor:
             'Santander':             '^IBEX',
 
             # UK → FTSE 100
-            'HSBC':                  '^FTSE',
+            'HSBC Holdings':         '^FTSE',
             'Barclays':              '^FTSE',
             'Standard Chartered':    '^FTSE',
 
@@ -95,10 +97,10 @@ class BankingDataProcessor:
             'Deutsche Bank':         '^GDAXI',
 
             # Switzerland → SMI
-            'UBS':                   '^SSMI',
+            'UBS Group':             '^SSMI',
 
             # Netherlands → AEX
-            'ING':                   '^AEX',
+            'ING Group':             '^AEX',
 
             # China → Shanghai Composite
             'China Construction Bank':'000001.SS',
@@ -141,15 +143,15 @@ class BankingDataProcessor:
             'Royal Bank of Canada': 'Americas',
             'Toronto Dominion': 'Americas',
             # Europe
-            'HSBC': 'Europe',
+            'HSBC Holdings': 'Europe',
             'Barclays': 'Europe',
             'BNP Paribas': 'Europe',
             'Groupe Crédit Agricole': 'Europe',
-            'ING': 'Europe',
+            'ING Group': 'Europe',
             'Deutsche Bank': 'Europe',
             'Santander': 'Europe',
             'Société Générale': 'Europe',
-            'UBS': 'Europe',
+            'UBS Group': 'Europe',
             'Standard Chartered': 'Europe',
             # Asia/Pacific
             'Agricultural Bank of China': 'Asia/Pacific',
@@ -208,6 +210,17 @@ class BankingDataProcessor:
         if len(selected_tickers) == 1:
             raw = raw.to_frame(selected_tickers[0])
         
+        # Check if we have any data at all
+        if raw.empty:
+            raise ValueError("No data downloaded for any selected banks")
+        
+        # Ensure index is DatetimeIndex
+        if not isinstance(raw.index, pd.DatetimeIndex):
+            try:
+                raw.index = pd.to_datetime(raw.index)
+            except Exception as e:
+                raise ValueError(f"Could not convert index to DatetimeIndex: {e}")
+        
         # Find & drop any tickers with *no* data at all
         no_data = [t for t in raw.columns if raw[t].dropna().empty]
         if no_data:
@@ -215,6 +228,10 @@ class BankingDataProcessor:
         
         # Define price_data as the cleaned raw data
         price_data = raw.drop(columns=no_data) if no_data else raw
+        
+        # Check if we still have data after cleaning
+        if price_data.empty:
+            raise ValueError("No valid data remaining after cleaning")
         
         # Map tickers to bank names
         price_data.rename(columns=self.bank_dict, inplace=True)
@@ -251,11 +268,26 @@ class BankingDataProcessor:
         if len(index_tickers) == 1:
             raw_idx = raw_idx.to_frame(index_tickers[0])
         
+        # Check if we have any data at all
+        if raw_idx.empty:
+            raise ValueError("No index data downloaded")
+        
+        # Ensure index is DatetimeIndex
+        if not isinstance(raw_idx.index, pd.DatetimeIndex):
+            try:
+                raw_idx.index = pd.to_datetime(raw_idx.index)
+            except Exception as e:
+                raise ValueError(f"Could not convert index to DatetimeIndex: {e}")
+        
         # Drop index tickers with no data at all
         no_data_idx = [t for t in raw_idx.columns if raw_idx[t].dropna().empty]
         if no_data_idx:
             print("Dropping indices with no data:", no_data_idx)
         raw_idx = raw_idx.drop(columns=no_data_idx) if no_data_idx else raw_idx
+        
+        # Check if we still have data after cleaning
+        if raw_idx.empty:
+            raise ValueError("No valid index data remaining after cleaning")
         
         # Weekly resample & compute log‐returns
         weekly_idx_prices = (

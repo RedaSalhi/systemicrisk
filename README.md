@@ -61,7 +61,42 @@ cd systemicrisk
 pip install -r requirements.txt
 ```
 
-### 🔧 Troubleshooting SciPy Import Error
+### 🔧 Troubleshooting Installation Issues
+
+#### Server Environment (Fortran Compilation Error)
+
+If you encounter errors like:
+```
+ERROR: Unknown compiler(s): [['gfortran'], ['flang-new'], ['flang'], ['nvfortran'], ['pgfortran'], ['ifort'], ['ifx'], ['g95']]
+```
+
+This happens because SciPy requires a Fortran compiler on servers. Here are the solutions:
+
+##### Option 1: Automatic Server Fix (Recommended)
+Run the server-specific installation script:
+```bash
+python fix_server_install.py
+```
+
+##### Option 2: Use Server-Compatible Requirements
+```bash
+pip install -r requirements-server.txt
+```
+
+##### Option 3: Install Fortran Compiler (if you have admin access)
+```bash
+# Debian/Ubuntu
+sudo apt-get update
+sudo apt-get install gfortran
+
+# CentOS/RHEL
+sudo yum install gcc-gfortran
+
+# Then install requirements
+pip install -r requirements.txt
+```
+
+#### Python 3.13 SciPy Import Error
 
 If you encounter the error:
 ```
@@ -70,26 +105,19 @@ ImportError: cannot import name '_lazywhere' from 'scipy._lib._util'
 
 This is a known compatibility issue with Python 3.13 and newer versions of SciPy.
 
-Building SciPy on Python 3.13 requires a Fortran compiler such as `gfortran`. You can install it on Debian-based systems with:
-```bash
-sudo apt-get install gfortran
-```
-
-Here are the solutions:
-
-#### Option 1: Automatic Fix (Recommended)
+##### Option 1: Automatic Fix (Recommended)
 Run the provided fix script:
 ```bash
 python fix_scipy_issue.py
 ```
 
-#### Option 2: Manual Fix
+##### Option 2: Manual Fix
 Use the fixed requirements file:
 ```bash
 pip install -r requirements-fixed.txt
 ```
 
-#### Option 3: Manual Package Installation
+##### Option 3: Manual Package Installation
 ```bash
 pip uninstall -y scipy numpy pandas scikit-learn statsmodels
 pip install numpy==1.25.2
@@ -98,6 +126,27 @@ pip install pandas==2.1.4
 pip install scikit-learn==1.3.2
 pip install statsmodels==0.14.0
 pip install -r requirements.txt
+```
+
+#### Alternative Installation Methods
+
+If pip installation continues to fail, try these alternatives:
+
+##### Using Conda (Recommended for Scientific Computing)
+```bash
+conda create -n systemicrisk python=3.11
+conda activate systemicrisk
+conda install -c conda-forge scipy pandas numpy scikit-learn statsmodels streamlit plotly yfinance
+pip install -r requirements.txt
+```
+
+##### Using System Package Manager
+```bash
+# Ubuntu/Debian
+sudo apt-get install python3-scipy python3-pandas python3-numpy python3-sklearn python3-statsmodels
+
+# CentOS/RHEL
+sudo yum install python3-scipy python3-pandas python3-numpy python3-sklearn python3-statsmodels
 ```
 
 ## 🚀 Usage
@@ -204,8 +253,9 @@ systemicrisk/
 ├── example_usage.py      # Example script
 ├── app.py               # Main landing page
 ├── requirements.txt     # Python dependencies
-├── requirements-fixed.txt # Fixed versions for compatibility
-├── fix_scipy_issue.py   # Automatic fix script
+├── requirements-server.txt # Server-compatible requirements
+├── fix_server_install.py # Server installation fix script
+├── fix_scipy_issue.py   # SciPy compatibility fix script
 └── README.md           # This file
 ```
 
