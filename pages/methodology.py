@@ -1,986 +1,745 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
-from scipy import stats
-import warnings
-warnings.filterwarnings('ignore')
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy.stats import genpareto, norm
+import sys
+import os
 
-# Import our data processor
-from data_processor import BankingDataProcessor, process_banking_data
+# Add parent directory to path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Page configuration
 st.set_page_config(
-    page_title="EVT Methodology Explainer",
+    page_title="Methodology",
     page_icon="📚",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# Custom CSS
+# Custom CSS for better equation display
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #2e7d32;
-        text-align: center;
-        margin-bottom: 2rem;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
-    }
-    .concept-box {
-        background-color: #f8f9fa;
-        border: 2px solid #2e7d32;
+    .equation-box {
+        background-color: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
         padding: 1.5rem;
-        border-radius: 0.75rem;
         margin: 1rem 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        font-family: 'Computer Modern', serif;
     }
-    .concept-box h3 {
-        color: #2e7d32;
-        margin-bottom: 1rem;
-        font-size: 1.3rem;
-        font-weight: 600;
+    .methodology-section {
+        background-color: #FAFAFA;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+        border-left: 4px solid #3B82F6;
     }
-    .concept-box p {
-        color: #333;
-        margin-bottom: 1rem;
-        line-height: 1.6;
-    }
-    .concept-box ul {
-        color: #555;
-        margin: 0.5rem 0;
-        padding-left: 1.5rem;
-    }
-    .concept-box li {
-        margin-bottom: 0.4rem;
-        line-height: 1.5;
-    }
-    .formula-box {
-        background-color: #f0f8ff;
-        border: 2px solid #1976d2;
-        padding: 1.2rem;
-        border-radius: 0.5rem;
-        font-family: 'Courier New', monospace;
-        margin: 0.8rem 0;
-        color: #333;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .step-box {
-        background-color: #fffbf0;
-        border-left: 4px solid #ff9800;
-        padding: 1.2rem;
-        margin: 0.8rem 0;
-        border-radius: 0 0.5rem 0.5rem 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .step-box h4 {
-        color: #d68910;
-        margin-bottom: 0.8rem;
-        font-size: 1.1rem;
-        font-weight: 600;
-    }
-    .step-box p {
-        color: #333;
-        margin-bottom: 0.5rem;
-        line-height: 1.5;
-    }
-    .step-box ol {
-        color: #555;
-        margin: 0.5rem 0;
-        padding-left: 1.5rem;
-    }
-    .step-box li {
-        margin-bottom: 0.4rem;
-        line-height: 1.5;
-    }
-    .warning-box {
-        background-color: #fff5f5;
-        border: 2px solid #f56565;
-        padding: 1.2rem;
-        border-radius: 0.5rem;
-        margin: 0.8rem 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .warning-box h4 {
-        color: #c53030;
-        margin-bottom: 0.8rem;
-        font-size: 1.1rem;
-        font-weight: 600;
-    }
-    .warning-box p {
-        color: #333;
-        margin-bottom: 0.5rem;
-        line-height: 1.5;
-    }
-    .warning-box ul {
-        color: #555;
-        margin: 0.5rem 0;
-        padding-left: 1.5rem;
-    }
-    .warning-box li {
-        margin-bottom: 0.4rem;
-        line-height: 1.5;
-    }
-    .success-box {
-        background-color: #f0fff4;
-        border: 2px solid #48bb78;
-        padding: 1.2rem;
-        border-radius: 0.5rem;
-        margin: 0.8rem 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .success-box h4 {
-        color: #38a169;
-        margin-bottom: 0.8rem;
-        font-size: 1.1rem;
-        font-weight: 600;
-    }
-    .success-box p {
-        color: #333;
-        margin-bottom: 0.5rem;
-        line-height: 1.5;
-    }
-    .success-box ul {
-        color: #555;
-        margin: 0.5rem 0;
-        padding-left: 1.5rem;
-    }
-    .success-box li {
-        margin-bottom: 0.4rem;
-        line-height: 1.5;
-    }
-    .nav-button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 0.25rem;
-        text-decoration: none;
-        display: inline-block;
-        margin: 0.25rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        border: none;
-        cursor: pointer;
-        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
-    }
-    .nav-button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
-    }
-    
-    /* Improve overall readability */
-    .stMarkdown {
-        color: #333;
-    }
-    
-    /* Better button styling */
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 0.5rem;
-        padding: 0.75rem 1.5rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
-    }
-    .stButton > button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
-    }
-    
-    /* Better text contrast */
-    h1, h2, h3, h4, h5, h6 {
-        color: #2c3e50;
-    }
-    
-    /* Improve list readability */
-    ul, ol {
-        color: #555;
-    }
-    
-    /* Better link colors */
-    a {
-        color: #1f77b4;
-    }
-    a:hover {
-        color: #0056b3;
-    }
-    
-    /* Improve metric displays */
-    .stMetric {
-        background-color: #ffffff;
-        border: 1px solid #e1e5e9;
-        border-radius: 0.5rem;
+    .code-example {
+        background-color: #1E293B;
+        color: #F1F5F9;
         padding: 1rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    
-    /* Better sidebar styling */
-    .css-1d391kg {
-        background-color: #f8f9fa;
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        margin: 1rem 0;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Navigation
-st.sidebar.markdown("## 🧭 Navigation")
-if st.sidebar.button("🏠 Home", key="nav_home"):
-    st.switch_page("app.py")
-if st.sidebar.button("📊 Dashboard", key="nav_dashboard"):
-    st.switch_page('pages/dashboard.py')
-if st.sidebar.button("⚠️ Early Warning", key="nav_ml"):
-    st.switch_page('pages/machinelearning.py')
-
-# Generate sample banking data
-@st.cache_data
-def generate_sample_data():
-    """Generate sample banking return data for demonstrations"""
-    np.random.seed(42)
+def main():
+    st.title("📚 Methodology & Mathematical Framework")
+    st.markdown("**Theoretical foundation of the EVT-based systemic risk measurement**")
     
-    # Generate 1000 daily returns
-    n_days = 1000
-    dates = pd.date_range('2020-01-01', periods=n_days, freq='D')
+    # Navigation tabs
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "🎯 Overview", 
+        "📊 EVT Fundamentals", 
+        "🔗 Systemic Beta", 
+        "💻 Implementation", 
+        "📖 References"
+    ])
     
-    # Simulate bank returns with fat tails (t-distribution)
-    bank_returns = stats.t.rvs(df=3, scale=0.02, size=n_days)
+    with tab1:
+        show_overview()
     
-    # Simulate market index returns
-    market_returns = stats.t.rvs(df=4, scale=0.015, size=n_days)
+    with tab2:
+        show_evt_fundamentals()
     
-    # Add some correlation
-    correlation = 0.6
-    bank_returns = correlation * market_returns + np.sqrt(1 - correlation**2) * bank_returns
+    with tab3:
+        show_systemic_beta()
     
-    # Convert to losses (negative returns)
-    bank_losses = -bank_returns
-    market_losses = -market_returns
+    with tab4:
+        show_implementation()
     
-    return pd.DataFrame({
-        'Date': dates,
-        'Bank_Returns': bank_returns,
-        'Market_Returns': market_returns,
-        'Bank_Losses': bank_losses,
-        'Market_Losses': market_losses
-    })
+    with tab5:
+        show_references()
 
-# EVT calculation functions (using the accurate methodology)
-def calculate_var(returns, alpha=0.95):
-    """Calculate Value at Risk"""
-    return -np.percentile(returns, (1-alpha)*100)
-
-def hill_estimator(x, threshold_quantile=0.99, min_excesses=5):
-    """
-    Estimate the tail index via Hill, but only at the
-    largest threshold_quantile such that at least min_excesses are in the tail.
-    """
-    # sort unique quantiles from, say, 90% up to desired level
-    candidate_q = np.linspace(0.90, threshold_quantile, 50)
-    for q in reversed(candidate_q):
-        p = 1 - q
-        u = np.quantile(x, p)
-        losses = -x[x < u]
-        losses = losses[losses > 0]
-        if len(losses) >= min_excesses:
-            min_loss = losses.min()
-            return np.mean(np.log(losses / min_loss))
-    # if even 90% gives too few points, fall back or return NaN
-    return np.nan
-
-def tail_dependence(x, y, u=0.95):
-    """Calculate tail dependence coefficient"""
-    qx, qy = np.quantile(x, u), np.quantile(y, u)
-    mask = x < qx   # left‐tail dependence (for losses)
-    return np.sum(y[mask] < qy) / np.sum(mask) if np.sum(mask)>0 else np.nan
-
-def systemic_beta(x, y, u=0.95):
-    """Calculate systemic beta"""
-    VaR_x = calculate_var(x, alpha=u)
-    VaR_y = calculate_var(y, alpha=u)
-    xi_y  = hill_estimator(y, threshold_quantile=u)
-    tau   = tail_dependence(x, y, u=u)
-    if xi_y is None or xi_y==0 or np.isnan(tau):
-        return np.nan
-    return (tau ** (1.0/xi_y)) * (VaR_x / VaR_y)
-
-# Load sample data
-sample_data = generate_sample_data()
-
-# Header
-st.markdown('<h1 class="main-header">📚 Extreme Value Theory (EVT) Methodology</h1>', unsafe_allow_html=True)
-st.markdown("**Interactive guide to understanding systemic risk measurement using Extreme Value Theory**")
-
-# Navigation tabs
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "🎯 Introduction", 
-    "📊 Value-at-Risk", 
-    "🔍 Hill Estimator", 
-    "🔗 Tail Dependence", 
-    "⚖️ Systemic Beta",
-    "🏦 Real Data Example"
-])
-
-with tab1:
-    st.header("What is Extreme Value Theory?")
+def show_overview():
+    """Overview of the methodology"""
+    
+    st.markdown("## 🎯 Framework Overview")
     
     col1, col2 = st.columns([2, 1])
     
     with col1:
         st.markdown("""
-        <div class="concept-box">
-        <h3>🎯 Core Concept</h3>
-        <p><strong>Extreme Value Theory (EVT)</strong> is a statistical framework that focuses on the behavior of extreme events - the "tail" of probability distributions. In banking, we care about extreme losses that could cause systemic crises.</p>
+        This application implements a comprehensive systemic risk measurement framework 
+        based on **Extreme Value Theory (EVT)** for analyzing Global Systemically Important Banks (G-SIBs).
         
-        <p><strong>Why EVT for Banking Risk?</strong></p>
-        <ul>
-        <li>🏦 Bank failures are rare but catastrophic events</li>
-        <li>📈 Normal distributions underestimate tail risks</li>
-        <li>🔗 EVT captures interconnectedness during stress</li>
-        <li>⚡ Focus on what matters: extreme losses</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
+        ### 🔬 Key Components
         
-        # Visual comparison: Normal vs Fat-tailed distribution
-        st.subheader("Normal vs Fat-Tailed Distributions")
+        1. **Value-at-Risk (VaR)** estimation using empirical quantiles
+        2. **Hill estimator** for tail index calculation
+        3. **Tail dependence** analysis between banks and regional indices
+        4. **Systemic Beta (βT)** as proposed by van Oordt & Zhou (2018)
+        5. **Spillover-aware stress testing** incorporating systemic linkages
+        6. **Machine Learning early-warning system** for crisis prediction
         
-        x = np.linspace(-6, 6, 1000)
-        normal_dist = stats.norm.pdf(x, 0, 1)
-        t_dist = stats.t.pdf(x, df=3)  # Fat-tailed
+        ### 🎯 Research Objectives
         
-        fig_dist = go.Figure()
-        fig_dist.add_trace(go.Scatter(
-            x=x, y=normal_dist, 
-            name='Normal Distribution',
-            line=dict(color='blue', width=2)
-        ))
-        fig_dist.add_trace(go.Scatter(
-            x=x, y=t_dist,
-            name='Fat-Tailed Distribution (Banking Returns)',
-            line=dict(color='red', width=2)
-        ))
-        
-        # Highlight tail areas
-        tail_mask = x <= -2
-        fig_dist.add_trace(go.Scatter(
-            x=x[tail_mask], y=normal_dist[tail_mask],
-            fill='tonexty', fillcolor='rgba(0,0,255,0.1)',
-            line=dict(color='blue', width=0),
-            showlegend=False
-        ))
-        
-        fig_dist.add_trace(go.Scatter(
-            x=x[tail_mask], y=t_dist[tail_mask],
-            fill='tonexty', fillcolor='rgba(255,0,0,0.1)',
-            line=dict(color='red', width=0),
-            showlegend=False
-        ))
-        
-        fig_dist.update_layout(
-            title="Distribution Comparison",
-            xaxis_title="Returns",
-            yaxis_title="Probability Density",
-            height=400
-        )
-        
-        st.plotly_chart(fig_dist, use_container_width=True)
-        
-        st.markdown("""
-        <div class="warning-box">
-        <h4>⚠️ Key Insight</h4>
-        <p>The fat-tailed distribution shows much higher probability of extreme losses compared to the normal distribution. 
-        This is why traditional risk models fail during financial crises - they underestimate the likelihood of extreme events.</p>
-        </div>
-        """, unsafe_allow_html=True)
+        - Measure individual bank tail risk using rolling VaR
+        - Quantify systemic importance through tail dependence
+        - Calculate systemic beta incorporating extreme value properties
+        - Develop stress testing scenarios accounting for spillover effects
+        - Build predictive models for early crisis detection
+        """)
     
     with col2:
+        st.markdown('<div class="methodology-section">', unsafe_allow_html=True)
         st.markdown("""
-        <div class="success-box">
-        <h4>✅ EVT Advantages</h4>
-        <ul>
-        <li>Accurate tail modeling</li>
-        <li>Captures extreme dependencies</li>
-        <li>Robust to distribution assumptions</li>
-        <li>Focuses on systemic risk</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
+        ### 📊 Data Specification
         
-        st.markdown("""
-        <div class="step-box">
-        <h4>📋 Our Methodology</h4>
-        <ol>
-        <li>Weekly return calculation</li>
-        <li>Rolling window analysis</li>
-        <li>Hill estimator for tail index</li>
-        <li>Tail dependence measurement</li>
-        <li>Systemic beta computation</li>
-        </ol>
-        </div>
-        """, unsafe_allow_html=True)
+        **Universe**: 28 G-SIBs
+        
+        **Period**: 2011-2024
+        
+        **Frequency**: Weekly
+        
+        **Window**: 52 weeks rolling
+        
+        **Indices**: Regional market indices for systemic beta calculation
+        
+        **Crisis Periods**: 
+        - Eurozone Crisis (2011-2012)
+        - China Correction (2015-2016)  
+        - COVID-19 (2020)
+        - Ukraine War (2022)
+        - Banking Stress 2023
+        """)
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Workflow diagram
+    st.markdown("### 🔄 Analytical Workflow")
+    
+    workflow_steps = [
+        "1. **Data Collection**: Download weekly closing prices for 28 G-SIBs and regional indices",
+        "2. **Return Calculation**: Compute weekly log-returns: $r_t = \\ln(P_t/P_{t-1})$",
+        "3. **Rolling Windows**: Apply 52-week rolling windows for all calculations",
+        "4. **VaR Estimation**: Calculate empirical quantiles at 95% and 99% confidence levels",
+        "5. **Hill Estimation**: Compute tail index using Hill estimator with dynamic thresholds",
+        "6. **Tail Dependence**: Measure left-tail dependence between banks and regional indices",
+        "7. **Systemic Beta**: Calculate βT using van Oordt & Zhou (2018) formula",
+        "8. **Stress Testing**: Perform spillover-aware scenario analysis",
+        "9. **ML Prediction**: Engineer features and train early-warning models"
+    ]
+    
+    for step in workflow_steps:
+        st.markdown(step)
 
-with tab2:
-    st.header("Value-at-Risk (VaR)")
+def show_evt_fundamentals():
+    """EVT fundamentals and equations"""
     
-    col1, col2 = st.columns([1, 1])
+    st.markdown("## 📊 Extreme Value Theory Fundamentals")
     
-    with col1:
-        st.markdown("""
-        <div class="concept-box">
-        <h3>📊 What is VaR?</h3>
-        <p><strong>Value-at-Risk (VaR)</strong> measures the maximum potential loss over a given time horizon at a specified confidence level.</p>
-        
-        <div class="formula-box">
-        VaR<sub>α</sub> = -F<sup>-1</sup>(1-α)
-        </div>
-        
-        <p>Where:</p>
-        <ul>
-        <li>α = confidence level (e.g., 95% or 99%)</li>
-        <li>F<sup>-1</sup> = inverse cumulative distribution function</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Interactive VaR calculation
-        st.subheader("Interactive VaR Calculator")
-        
-        confidence_level = st.slider(
-            "Confidence Level (%)", 
-            min_value=90, max_value=99, value=95, step=1
-        )
-        
-        # Calculate VaR for sample data
-        var_value = calculate_var(sample_data['Bank_Returns'], alpha=confidence_level/100)
-        
-        st.metric(
-            f"VaR ({confidence_level}%)", 
-            f"{var_value:.4f}",
-            help="Maximum expected loss at the specified confidence level"
-        )
+    # Value-at-Risk
+    st.markdown("### 1. Value-at-Risk (VaR)")
     
-    with col2:
-        # VaR visualization
-        st.subheader("VaR Visualization")
-        
-        returns = sample_data['Bank_Returns']
-        var_95 = calculate_var(returns, alpha=0.95)
-        var_99 = calculate_var(returns, alpha=0.99)
-        
-        fig_var = go.Figure()
-        
-        # Histogram of returns
-        fig_var.add_trace(go.Histogram(
-            x=returns, 
-            nbinsx=50,
-            name='Return Distribution',
-            opacity=0.7,
-            marker_color='lightblue'
-        ))
-        
-        # Add VaR lines
-        fig_var.add_vline(
-            x=-var_95, 
-            line_dash="dash", 
-            line_color="orange",
-            annotation_text=f"VaR 95%: {-var_95:.4f}"
-        )
-        
-        fig_var.add_vline(
-            x=-var_99, 
-            line_dash="dash", 
-            line_color="red",
-            annotation_text=f"VaR 99%: {-var_99:.4f}"
-        )
-        
-        fig_var.update_layout(
-            title="Return Distribution with VaR Levels",
-            xaxis_title="Returns",
-            yaxis_title="Frequency",
-            height=400
-        )
-        
-        st.plotly_chart(fig_var, use_container_width=True)
-        
-        st.markdown("""
-        <div class="step-box">
-        <h4>🔍 Interpretation</h4>
-        <p>• <strong>VaR 95%</strong>: 95% chance that losses won't exceed this level</p>
-        <p>• <strong>VaR 99%</strong>: 99% chance that losses won't exceed this level</p>
-        <p>• Higher confidence = higher VaR = more conservative estimate</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-with tab3:
-    st.header("Hill Estimator")
-    
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.markdown("""
-        <div class="concept-box">
-        <h3>🔍 What is the Hill Estimator?</h3>
-        <p>The <strong>Hill Estimator</strong> estimates the tail index (ξ) of heavy-tailed distributions, which characterizes how "heavy" the tails are.</p>
-        
-        <div class="formula-box">
-        ξ̂ = (1/k) Σ<sub>i=1</sub><sup>k</sup> log(X<sub>(i)</sub>/u)
-        </div>
-        
-        <p>Where:</p>
-        <ul>
-        <li>k = number of exceedances above threshold u</li>
-        <li>X<sub>(i)</sub> = i-th largest observation</li>
-        <li>u = threshold value</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Interactive Hill estimator
-        st.subheader("Interactive Hill Estimator")
-        
-        threshold_q = st.slider(
-            "Threshold Quantile", 
-            min_value=0.90, max_value=0.99, value=0.95, step=0.01
-        )
-        
-        hill_value = hill_estimator(sample_data['Bank_Returns'], threshold_quantile=threshold_q)
-        
-        if not np.isnan(hill_value):
-            st.metric(
-                f"Hill Estimator (q={threshold_q})", 
-                f"{hill_value:.4f}",
-                help="Tail index estimate - higher values indicate heavier tails"
-            )
-            
-            # Interpretation
-            if hill_value > 0.5:
-                interpretation = "Very heavy tails (high extreme risk)"
-                color = "red"
-            elif hill_value > 0.3:
-                interpretation = "Heavy tails (moderate extreme risk)"
-                color = "orange"
-            else:
-                interpretation = "Moderate tails (lower extreme risk)"
-                color = "green"
-            
-            st.markdown(f"""
-            <div class="step-box">
-            <h4 style="color: {color}">📊 Interpretation</h4>
-            <p>{interpretation}</p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.warning("Insufficient data for Hill estimator at this threshold")
-    
-    with col2:
-        # Hill estimator visualization
-        st.subheader("Hill Estimator Analysis")
-        
-        # Calculate Hill estimator for different thresholds
-        thresholds = np.linspace(0.90, 0.99, 20)
-        hill_values = []
-        
-        for q in thresholds:
-            hill_val = hill_estimator(sample_data['Bank_Returns'], threshold_quantile=q)
-            hill_values.append(hill_val)
-        
-        fig_hill = go.Figure()
-        fig_hill.add_trace(go.Scatter(
-            x=thresholds, 
-            y=hill_values,
-            mode='lines+markers',
-            name='Hill Estimator',
-            line=dict(color='purple', width=2)
-        ))
-        
-        fig_hill.update_layout(
-            title="Hill Estimator vs Threshold",
-            xaxis_title="Threshold Quantile",
-            yaxis_title="Hill Estimator (ξ)",
-            height=400
-        )
-        
-        st.plotly_chart(fig_hill, use_container_width=True)
-        
-        st.markdown("""
-        <div class="warning-box">
-        <h4>⚠️ Important Notes</h4>
-        <ul>
-        <li>Hill estimator is sensitive to threshold choice</li>
-        <li>Too low threshold: bias from non-tail observations</li>
-        <li>Too high threshold: high variance from few observations</li>
-        <li>We use adaptive threshold selection in our implementation</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
-
-with tab4:
-    st.header("Tail Dependence")
-    
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.markdown("""
-        <div class="concept-box">
-        <h3>🔗 What is Tail Dependence?</h3>
-        <p><strong>Tail Dependence</strong> measures the probability that one variable exceeds its threshold given that another variable exceeds its threshold.</p>
-        
-        <div class="formula-box">
-        τ = P(Y > F<sub>Y</sub><sup>-1</sup>(u) | X > F<sub>X</sub><sup>-1</sup>(u))
-        </div>
-        
-        <p>Where:</p>
-        <ul>
-        <li>τ = tail dependence coefficient</li>
-        <li>u = threshold quantile (e.g., 0.95)</li>
-        <li>F<sup>-1</sup> = inverse cumulative distribution function</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Interactive tail dependence
-        st.subheader("Interactive Tail Dependence")
-        
-        threshold_u = st.slider(
-            "Threshold (u)", 
-            min_value=0.90, max_value=0.99, value=0.95, step=0.01
-        )
-        
-        tail_dep = tail_dependence(
-            sample_data['Bank_Returns'], 
-            sample_data['Market_Returns'], 
-            u=threshold_u
-        )
-        
-        if not np.isnan(tail_dep):
-            st.metric(
-                f"Tail Dependence (u={threshold_u})", 
-                f"{tail_dep:.4f}",
-                help="Probability of joint extreme events"
-            )
-            
-            # Interpretation
-            if tail_dep > 0.7:
-                interpretation = "Very high systemic risk"
-                color = "red"
-            elif tail_dep > 0.5:
-                interpretation = "High systemic risk"
-                color = "orange"
-            elif tail_dep > 0.3:
-                interpretation = "Moderate systemic risk"
-                color = "yellow"
-            else:
-                interpretation = "Low systemic risk"
-                color = "green"
-            
-            st.markdown(f"""
-            <div class="step-box">
-            <h4 style="color: {color}">📊 Interpretation</h4>
-            <p>{interpretation}</p>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    with col2:
-        # Tail dependence visualization
-        st.subheader("Tail Dependence Analysis")
-        
-        # Scatter plot with tail dependence regions
-        fig_tail = go.Figure()
-        
-        # Main scatter plot
-        fig_tail.add_trace(go.Scatter(
-            x=sample_data['Bank_Returns'],
-            y=sample_data['Market_Returns'],
-            mode='markers',
-            marker=dict(
-                size=4,
-                color='lightblue',
-                opacity=0.6
-            ),
-            name='All Observations'
-        ))
-        
-        # Highlight tail region
-        threshold_bank = np.quantile(sample_data['Bank_Returns'], 0.95)
-        threshold_market = np.quantile(sample_data['Market_Returns'], 0.95)
-        
-        tail_mask = (sample_data['Bank_Returns'] < threshold_bank) & (sample_data['Market_Returns'] < threshold_market)
-        
-        fig_tail.add_trace(go.Scatter(
-            x=sample_data['Bank_Returns'][tail_mask],
-            y=sample_data['Market_Returns'][tail_mask],
-            mode='markers',
-            marker=dict(
-                size=6,
-                color='red',
-                opacity=0.8
-            ),
-            name='Tail Region'
-        ))
-        
-        # Add threshold lines
-        fig_tail.add_hline(y=threshold_market, line_dash="dash", line_color="red")
-        fig_tail.add_vline(x=threshold_bank, line_dash="dash", line_color="red")
-        
-        fig_tail.update_layout(
-            title="Bank vs Market Returns with Tail Dependence",
-            xaxis_title="Bank Returns",
-            yaxis_title="Market Returns",
-            height=400
-        )
-        
-        st.plotly_chart(fig_tail, use_container_width=True)
-        
-        st.markdown("""
-        <div class="warning-box">
-        <h4>⚠️ Systemic Risk Implications</h4>
-        <ul>
-        <li>High tail dependence = high contagion risk</li>
-        <li>Banks fail together during crises</li>
-        <li>Traditional correlation underestimates this risk</li>
-        <li>Critical for systemic risk assessment</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
-
-with tab5:
-    st.header("Systemic Beta")
-    
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.markdown("""
-        <div class="concept-box">
-        <h3>⚖️ What is Systemic Beta?</h3>
-        <p><strong>Systemic Beta (βT)</strong> measures a bank's contribution to systemic risk, combining individual risk (VaR) with systemic interconnectedness (tail dependence).</p>
-        
-        <div class="formula-box">
-        βT = (τ<sup>1/ξ</sup>) × (VaR<sub>bank</sub> / VaR<sub>market</sub>)
-        </div>
-        
-        <p>Where:</p>
-        <ul>
-        <li>τ = tail dependence coefficient</li>
-        <li>ξ = Hill estimator (tail index)</li>
-        <li>VaR = Value-at-Risk</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Interactive systemic beta calculation
-        st.subheader("Interactive Systemic Beta Calculator")
-        
-        confidence_beta = st.slider(
-            "Confidence Level for Beta (%)", 
-            min_value=90, max_value=99, value=95, step=1
-        )
-        
-        beta_value = systemic_beta(
-            sample_data['Bank_Returns'], 
-            sample_data['Market_Returns'], 
-            u=confidence_beta/100
-        )
-        
-        if not np.isnan(beta_value):
-            st.metric(
-                f"Systemic Beta ({confidence_beta}%)", 
-                f"{beta_value:.4f}",
-                help="Bank's contribution to systemic risk"
-            )
-            
-            # Risk assessment
-            if beta_value > 2.0:
-                risk_level = "🔴 High Risk"
-                risk_desc = "Significant systemic risk contribution"
-                color = "red"
-            elif beta_value > 1.5:
-                risk_level = "🟡 Medium Risk"
-                risk_desc = "Moderate systemic risk contribution"
-                color = "orange"
-            else:
-                risk_level = "🟢 Low Risk"
-                risk_desc = "Low systemic risk contribution"
-                color = "green"
-            
-            st.markdown(f"""
-            <div class="step-box">
-            <h4 style="color: {color}">{risk_level}</h4>
-            <p>{risk_desc}</p>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    with col2:
-        # Systemic beta components breakdown
-        st.subheader("Systemic Beta Components")
-        
-        # Calculate components
-        var_bank = calculate_var(sample_data['Bank_Returns'], alpha=0.95)
-        var_market = calculate_var(sample_data['Market_Returns'], alpha=0.95)
-        hill_market = hill_estimator(sample_data['Market_Returns'], threshold_quantile=0.95)
-        tail_dep = tail_dependence(sample_data['Bank_Returns'], sample_data['Market_Returns'], u=0.95)
-        
-        # Create component breakdown
-        components_data = {
-            'Component': ['VaR Bank', 'VaR Market', 'Hill Estimator', 'Tail Dependence', 'Systemic Beta'],
-            'Value': [var_bank, var_market, hill_market, tail_dep, beta_value if not np.isnan(beta_value) else 0]
-        }
-        
-        fig_components = go.Figure(data=[
-            go.Bar(
-                x=components_data['Component'],
-                y=components_data['Value'],
-                marker_color=['blue', 'green', 'purple', 'orange', 'red']
-            )
-        ])
-        
-        fig_components.update_layout(
-            title="Systemic Beta Components",
-            xaxis_title="Component",
-            yaxis_title="Value",
-            height=400
-        )
-        
-        st.plotly_chart(fig_components, use_container_width=True)
-        
-        st.markdown("""
-        <div class="success-box">
-        <h4>✅ Key Advantages</h4>
-        <ul>
-        <li>Combines individual and systemic risk</li>
-        <li>Accounts for extreme event dependencies</li>
-        <li>Provides interpretable risk measure</li>
-        <li>Enables bank ranking by systemic importance</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
-
-with tab6:
-    st.header("Real Data Example")
-    
+    st.markdown('<div class="equation-box">', unsafe_allow_html=True)
     st.markdown("""
-    <div class="concept-box">
-    <h3>🏦 Real Banking Data Analysis</h3>
-    <p>Let's see how our methodology works with real banking data from the 28 global banks in our system.</p>
-    </div>
-    """, unsafe_allow_html=True)
+    **Definition**: The Value-at-Risk at confidence level α is defined as:
     
-    # Bank selection for demonstration
-    processor = BankingDataProcessor()
-    banks_by_region = processor.get_banks_by_region()
+    $$VaR_\\alpha = -F^{-1}(1-\\alpha)$$
+    
+    where $F^{-1}$ is the inverse of the return distribution function.
+    
+    **Empirical Implementation**:
+    $$VaR_\\alpha = -\\text{quantile}(r_t, 1-\\alpha)$$
+    
+    For α = 0.95: $VaR_{0.95} = -\\text{quantile}(r_t, 0.05)$
+    """)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Hill Estimator
+    st.markdown("### 2. Hill Estimator")
+    
+    st.markdown('<div class="equation-box">', unsafe_allow_html=True)
+    st.markdown("""
+    **Purpose**: Estimate the tail index ξ for the extreme value distribution.
+    
+    **Formula**: For excesses over threshold u:
+    $$\\hat{\\xi}_H = \\frac{1}{n} \\sum_{i=1}^{n} \\ln\\left(\\frac{X_i}{u}\\right)$$
+    
+    where $X_i$ are the n largest losses exceeding threshold u.
+    
+    **Dynamic Threshold Selection**: 
+    - Start from high quantile (e.g., 99%)
+    - Reduce until minimum number of excesses is reached
+    - Ensures statistical reliability while capturing tail behavior
+    """)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Tail Dependence
+    st.markdown("### 3. Tail Dependence")
+    
+    st.markdown('<div class="equation-box">', unsafe_allow_html=True)
+    st.markdown("""
+    **Definition**: Measures the probability of joint extreme events.
+    
+    **Left-tail dependence coefficient**:
+    $$\\tau_L = \\lim_{u \\to 0^+} P(Y \\leq F_Y^{-1}(u) | X \\leq F_X^{-1}(u))$$
+    
+    **Empirical Estimation**:
+    $$\\hat{\\tau}_L = \\frac{\\sum_{i=1}^T \\mathbf{1}_{\\{X_i \\leq q_X, Y_i \\leq q_Y\\}}}{\\sum_{i=1}^T \\mathbf{1}_{\\{X_i \\leq q_X\\}}}$$
+    
+    where $q_X$ and $q_Y$ are the u-quantiles of X and Y respectively.
+    """)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Interactive example
+    st.markdown("### 📈 Interactive EVT Example")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Select Banks for Analysis")
-        
-        # Quick selection of a few banks
-        demo_banks = st.multiselect(
-            "Choose banks to analyze:",
-            options=processor.get_available_banks(),
-            default=['JPMorgan Chase', 'HSBC Holdings', 'Deutsche Bank'],
-            max_selections=5
-        )
-        
-        if st.button("Analyze Selected Banks", type="primary"):
-            if demo_banks:
-                with st.spinner("Downloading and analyzing data..."):
-                    try:
-                        # Process data for selected banks
-                        demo_processor = process_banking_data(
-                            demo_banks, 
-                            start_date='2020-01-01', 
-                            end_date='2024-12-31'
-                        )
-                        
-                        # Get latest metrics
-                        latest_metrics = demo_processor.get_latest_metrics(0.95)
-                        
-                        st.success("Analysis completed!")
-                        
-                        # Display results
-                        st.subheader("Latest Systemic Risk Metrics")
-                        
-                        # Create a nice table
-                        display_data = latest_metrics[['Bank', 'Region', 'Beta_T', 'VaR_95', 'Tau_95']].copy()
-                        display_data = display_data.round(4)
-                        
-                        # Color code by risk level
-                        def color_risk(val):
-                            if val > 2.0:
-                                return 'background-color: #ffebee'
-                            elif val > 1.5:
-                                return 'background-color: #fff3e0'
-                            else:
-                                return 'background-color: #e8f5e8'
-                        
-                        st.dataframe(
-                            display_data.style.applymap(color_risk, subset=['Beta_T']),
-                            use_container_width=True
-                        )
-                        
-                        # Risk summary
-                        high_risk = len(latest_metrics[latest_metrics['Beta_T'] > 2.0])
-                        medium_risk = len(latest_metrics[
-                            (latest_metrics['Beta_T'] > 1.5) & 
-                            (latest_metrics['Beta_T'] <= 2.0)
-                        ])
-                        low_risk = len(latest_metrics[latest_metrics['Beta_T'] <= 1.5])
-                        
-                        col_a, col_b, col_c = st.columns(3)
-                        with col_a:
-                            st.metric("🔴 High Risk", high_risk)
-                        with col_b:
-                            st.metric("🟡 Medium Risk", medium_risk)
-                        with col_c:
-                            st.metric("🟢 Low Risk", low_risk)
-                        
-                    except Exception as e:
-                        st.error(f"Error analyzing data: {str(e)}")
-                        st.info("This might be due to network issues or data availability.")
-            else:
-                st.warning("Please select at least one bank.")
+        st.markdown("#### Parameter Controls")
+        n_samples = st.slider("Sample Size", 500, 2000, 1000)
+        tail_param = st.slider("Tail Parameter (ξ)", 0.1, 0.5, 0.2, 0.05)
+        threshold_pct = st.slider("Threshold (%)", 90, 99, 95)
     
     with col2:
-        st.subheader("Available Banks by Region")
+        # Generate sample data
+        np.random.seed(42)
+        returns = np.random.normal(0, 0.02, n_samples)
         
-        for region, banks in banks_by_region.items():
-            with st.expander(f"{region} ({len(banks)} banks)"):
-                for bank in banks:
-                    st.write(f"• {bank}")
+        # Add some extreme events
+        extreme_prob = 0.05
+        n_extreme = int(n_samples * extreme_prob)
+        extreme_indices = np.random.choice(n_samples, n_extreme, replace=False)
+        returns[extreme_indices] += np.random.exponential(0.05, n_extreme) * np.random.choice([-1, 1], n_extreme)
         
+        # Calculate VaR
+        var_95 = -np.percentile(returns, 5)
+        var_99 = -np.percentile(returns, 1)
+        
+        # Plot distribution
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.hist(returns, bins=50, alpha=0.7, density=True, color='skyblue', edgecolor='black')
+        ax.axvline(-var_95, color='orange', linestyle='--', linewidth=2, label=f'VaR 95% = {var_95:.4f}')
+        ax.axvline(-var_99, color='red', linestyle='--', linewidth=2, label=f'VaR 99% = {var_99:.4f}')
+        ax.set_xlabel('Returns')
+        ax.set_ylabel('Density')
+        ax.set_title('Return Distribution with VaR Estimates')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        st.pyplot(fig)
+
+def show_systemic_beta():
+    """Systemic beta methodology"""
+    
+    st.markdown("## 🔗 Systemic Beta (βT) Framework")
+    
+    # Main formula
+    st.markdown('<div class="equation-box">', unsafe_allow_html=True)
+    st.markdown("""
+    ## Van Oordt & Zhou (2018) Systemic Beta
+    
+    The systemic beta captures a bank's contribution to systemic risk by combining:
+    - **Tail dependence** with the financial system
+    - **Relative tail thickness** compared to the system
+    - **Individual tail risk** magnitude
+    
+    $$\\beta_T = \\tau^{1/\\xi_y} \\cdot \\frac{VaR_x}{VaR_y}$$
+    
+    **Where**:
+    - $\\tau$: Tail dependence coefficient between bank and system
+    - $\\xi_y$: Hill estimator (tail index) of the system
+    - $VaR_x$: Value-at-Risk of the individual bank
+    - $VaR_y$: Value-at-Risk of the system (regional index)
+    """)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Component explanation
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown('<div class="methodology-section">', unsafe_allow_html=True)
         st.markdown("""
-        <div class="step-box">
-        <h4>📋 How to Use Real Data</h4>
-        <ol>
-        <li>Select banks from the dropdown</li>
-        <li>Click "Analyze Selected Banks"</li>
-        <li>View systemic risk metrics</li>
-        <li>Interpret risk levels</li>
-        <li>Compare across banks</li>
-        </ol>
-        </div>
-        """, unsafe_allow_html=True)
+        ### 🎯 Component Interpretation
+        
+        **1. Tail Dependence (τ)**
+        - Measures correlation in extreme downturns
+        - τ = 0: No tail dependence
+        - τ = 1: Perfect tail dependence
+        - Higher τ → more systemic importance
+        
+        **2. Tail Index Adjustment (1/ξ_y)**
+        - Accounts for system's tail thickness
+        - Higher ξ → thicker tails → more extreme events
+        - Normalizes for different tail characteristics
+        
+        **3. Relative VaR Ratio**
+        - Compares individual vs. system tail risk
+        - Captures relative magnitude of extreme losses
+        - Higher ratio → higher individual contribution
+        """)
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown('<div class="methodology-section">', unsafe_allow_html=True)
+        st.markdown("""
+        ### 📊 Interpretation Guidelines
+        
+        **βT < 1.0**: Low systemic importance
+        - Bank contributes less than proportionally to systemic risk
+        - Relatively isolated from system-wide events
+        
+        **1.0 ≤ βT < 2.0**: Moderate systemic importance  
+        - Bank moves in line with system during stress
+        - Standard level of interconnectedness
+        
+        **βT ≥ 2.0**: High systemic importance
+        - Bank amplifies systemic risk
+        - Potential source of contagion
+        - Requires enhanced supervision
+        """)
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Mathematical properties
+    st.markdown("### 🔢 Mathematical Properties")
+    
+    properties = [
+        "**Asymptotic Consistency**: βT converges to true systemic importance as sample size increases",
+        "**Scale Invariance**: Results unchanged by scaling of return series",
+        "**Tail Focus**: Emphasizes extreme events rather than normal market conditions",
+        "**Relative Measure**: Compares bank risk to system benchmark",
+        "**Non-Negativity**: βT ≥ 0 by construction",
+        "**Crisis Sensitivity**: Higher values during financial stress periods"
+    ]
+    
+    for prop in properties:
+        st.markdown(f"- {prop}")
+    
+    # Interactive systemic beta calculator
+    st.markdown("### 🧮 Interactive Systemic Beta Calculator")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("#### Input Parameters")
+        tau_input = st.slider("Tail Dependence (τ)", 0.1, 0.9, 0.5, 0.05)
+        xi_input = st.slider("System Tail Index (ξ)", 0.1, 0.8, 0.3, 0.05)
+        var_bank = st.slider("Bank VaR", 0.02, 0.15, 0.08, 0.01)
+        var_system = st.slider("System VaR", 0.02, 0.10, 0.05, 0.01)
+    
+    with col2:
+        # Calculate systemic beta
+        beta_t = (tau_input ** (1/xi_input)) * (var_bank / var_system)
+        
+        st.markdown("#### Calculated Systemic Beta")
+        st.metric("βT", f"{beta_t:.3f}")
+        
+        # Risk classification
+        if beta_t < 1.0:
+            risk_level = "🟢 Low Risk"
+            risk_color = "green"
+        elif beta_t < 2.0:
+            risk_level = "🟡 Moderate Risk"
+            risk_color = "orange"
+        else:
+            risk_level = "🔴 High Risk"
+            risk_color = "red"
+        
+        st.markdown(f"**Risk Level**: {risk_level}")
+        
+        st.markdown("#### Component Contributions")
+        tail_component = tau_input ** (1/xi_input)
+        var_component = var_bank / var_system
+        
+        st.metric("Tail Component", f"{tail_component:.3f}")
+        st.metric("VaR Ratio", f"{var_component:.3f}")
+    
+    with col3:
+        # Sensitivity analysis
+        st.markdown("#### Sensitivity Analysis")
+        
+        tau_range = np.linspace(0.1, 0.9, 20)
+        beta_sensitivity = [(tau ** (1/xi_input)) * (var_bank / var_system) for tau in tau_range]
+        
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.plot(tau_range, beta_sensitivity, linewidth=2, color='blue')
+        ax.axhline(y=1.0, color='orange', linestyle='--', alpha=0.7, label='Moderate Risk')
+        ax.axhline(y=2.0, color='red', linestyle='--', alpha=0.7, label='High Risk')
+        ax.axvline(x=tau_input, color='green', linestyle=':', alpha=0.7, label='Current τ')
+        ax.set_xlabel('Tail Dependence (τ)')
+        ax.set_ylabel('Systemic Beta (βT)')
+        ax.set_title('Sensitivity to Tail Dependence')
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+        st.pyplot(fig)
+
+def show_implementation():
+    """Implementation details and code examples"""
+    
+    st.markdown("## 💻 Implementation Details")
+    
+    # Data processing pipeline
+    st.markdown("### 1. Data Processing Pipeline")
+    
+    st.markdown('<div class="code-example">', unsafe_allow_html=True)
+    st.code("""
+# Data download and preprocessing
+import yfinance as yf
+import pandas as pd
+import numpy as np
+
+def download_data(start_date='2011-01-01', end_date='2024-12-31'):
+    # Download bank stock prices
+    bank_tickers = ['JPM', 'BAC', 'C', 'WFC', 'GS', ...]  # 28 G-SIBs
+    raw_banks = yf.download(bank_tickers, start=start_date, end=end_date)['Close']
+    
+    # Download regional indices
+    index_tickers = ['^GSPC', '^FTSE', '^N225', ...]
+    raw_indices = yf.download(index_tickers, start=start_date, end=end_date)['Close']
+    
+    return raw_banks, raw_indices
+
+def prepare_returns(price_data):
+    # Convert to weekly frequency (Friday close)
+    weekly_prices = price_data.resample('W-FRI').last().ffill()
+    
+    # Calculate log returns
+    returns = np.log(weekly_prices / weekly_prices.shift(1)).dropna()
+    
+    return returns
+    """, language="python")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # EVT functions
+    st.markdown("### 2. EVT Function Implementations")
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["VaR", "Hill Estimator", "Tail Dependence", "Systemic Beta"])
+    
+    with tab1:
+        st.markdown("#### Value-at-Risk Implementation")
+        st.code("""
+def rolling_var(returns, alpha=0.95):
+    \"\"\"
+    Calculate Value-at-Risk using empirical quantiles
+    
+    Parameters:
+    - returns: array of return observations
+    - alpha: confidence level (0.95 for 95% VaR)
+    
+    Returns:
+    - VaR: Value-at-Risk (positive number)
+    \"\"\"
+    return -np.percentile(returns, 100*(1-alpha))
+
+# Example usage
+weekly_returns = np.array([-0.02, 0.01, -0.05, 0.03, -0.08, ...])
+var_95 = rolling_var(weekly_returns, alpha=0.95)
+print(f"95% VaR: {var_95:.4f}")
+        """, language="python")
+    
+    with tab2:
+        st.markdown("#### Hill Estimator Implementation")
+        st.code("""
+def hill_estimator(returns, threshold_quantile=0.95, min_excesses=5):
+    \"\"\"
+    Calculate Hill estimator for tail index
+    
+    Parameters:
+    - returns: array of return observations
+    - threshold_quantile: quantile for threshold selection
+    - min_excesses: minimum number of exceedances required
+    
+    Returns:
+    - xi: Hill estimator (tail index)
+    \"\"\"
+    # Try different thresholds from 90% to desired quantile
+    candidate_quantiles = np.linspace(0.90, threshold_quantile, 50)
+    
+    for q in reversed(candidate_quantiles):
+        # Calculate threshold
+        u = np.quantile(returns, 1-q)
+        
+        # Extract losses (negative returns)
+        losses = -returns[returns < u]
+        losses = losses[losses > 0]  # Ensure positive losses
+        
+        if len(losses) >= min_excesses:
+            # Calculate Hill estimator
+            min_loss = losses.min()
+            xi = np.mean(np.log(losses / min_loss))
+            return xi
+    
+    return np.nan  # Insufficient data
+
+# Example usage
+xi_hat = hill_estimator(weekly_returns, threshold_quantile=0.95)
+print(f"Hill estimator: {xi_hat:.4f}")
+        """, language="python")
+    
+    with tab3:
+        st.markdown("#### Tail Dependence Implementation")
+        st.code("""
+def tail_dependence(x, y, u=0.95):
+    \"\"\"
+    Calculate left-tail dependence coefficient
+    
+    Parameters:
+    - x, y: return series for bank and system
+    - u: quantile level for tail definition
+    
+    Returns:
+    - tau: tail dependence coefficient
+    \"\"\"
+    # Calculate quantiles
+    qx = np.quantile(x, 1-u)  # Left tail threshold for x
+    qy = np.quantile(y, 1-u)  # Left tail threshold for y
+    
+    # Identify left tail observations for x
+    mask_x = x < qx
+    
+    if np.sum(mask_x) == 0:
+        return np.nan
+    
+    # Calculate conditional probability
+    tau = np.sum(y[mask_x] < qy) / np.sum(mask_x)
+    
+    return tau
+
+# Example usage
+bank_returns = np.array([...])  # Bank return series
+system_returns = np.array([...])  # System return series
+
+tau = tail_dependence(bank_returns, system_returns, u=0.95)
+print(f"Tail dependence: {tau:.4f}")
+        """, language="python")
+    
+    with tab4:
+        st.markdown("#### Systemic Beta Implementation")
+        st.code("""
+def systemic_beta(bank_returns, system_returns, u=0.95):
+    \"\"\"
+    Calculate systemic beta following van Oordt & Zhou (2018)
+    
+    Parameters:
+    - bank_returns: individual bank return series
+    - system_returns: system/index return series  
+    - u: quantile level for calculations
+    
+    Returns:
+    - beta_T: systemic beta
+    \"\"\"
+    # Calculate components
+    var_bank = rolling_var(bank_returns, alpha=u)
+    var_system = rolling_var(system_returns, alpha=u)
+    xi_system = hill_estimator(system_returns, threshold_quantile=u)
+    tau = tail_dependence(bank_returns, system_returns, u=u)
+    
+    # Check for valid inputs
+    if (xi_system is None or xi_system == 0 or 
+        np.isnan(tau) or var_system == 0):
+        return np.nan
+    
+    # Calculate systemic beta
+    beta_T = (tau ** (1.0/xi_system)) * (var_bank / var_system)
+    
+    return beta_T
+
+# Example usage in rolling window
+def compute_rolling_systemic_beta(bank_data, system_data, window=52):
+    results = []
+    
+    for i in range(window, len(bank_data)):
+        # Extract rolling window
+        bank_window = bank_data[i-window:i]
+        system_window = system_data[i-window:i]
+        
+        # Calculate systemic beta
+        beta = systemic_beta(bank_window, system_window)
+        results.append(beta)
+    
+    return np.array(results)
+        """, language="python")
+    
+    # Rolling window implementation
+    st.markdown("### 3. Rolling Window Framework")
+    
+    st.markdown('<div class="methodology-section">', unsafe_allow_html=True)
+    st.markdown("""
+    #### Rolling Window Rationale
+    
+    **Window Size**: 52 weeks (1 year)
+    - Captures seasonal patterns in banking
+    - Sufficient observations for EVT estimation
+    - Balance between stability and responsiveness
+    
+    **Update Frequency**: Weekly
+    - Aligns with data frequency
+    - Provides timely risk updates
+    - Smooth evolution of risk metrics
+    
+    **Estimation Procedure**:
+    1. For each date t, use data from [t-51, t]
+    2. Calculate all EVT metrics on this window
+    3. Store results with date t
+    4. Advance to t+1 and repeat
+    """)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.code("""
+def compute_rolling_metrics(combined_data, bank_names, window_size=52):
+    \"\"\"
+    Compute rolling systemic risk metrics for all banks
+    \"\"\"
+    results = []
+    dates = combined_data.index[window_size:]  # Start after first window
+    
+    for date in dates:
+        # Get rolling window ending at current date
+        window_data = combined_data.loc[:date].tail(window_size)
+        
+        for bank in bank_names:
+            # Get bank and corresponding regional index
+            bank_returns = window_data[bank].values
+            index_name = get_regional_index(bank)  # Map bank to index
+            index_returns = window_data[index_name].values
+            
+            # Calculate all metrics
+            results.append({
+                'Date': date,
+                'Bank': bank,
+                'VaR_95': rolling_var(bank_returns, alpha=0.95),
+                'Hill_95': hill_estimator(bank_returns, threshold_quantile=0.95),
+                'Tau_95': tail_dependence(bank_returns, index_returns, u=0.95),
+                'Beta_T': systemic_beta(bank_returns, index_returns, u=0.95)
+            })
+    
+    return pd.DataFrame(results).set_index(['Date', 'Bank'])
+    """, language="python")
+
+def show_references():
+    """References and citations"""
+    
+    st.markdown("## 📖 References & Further Reading")
+    
+    st.markdown("### 📚 Primary References")
+    
+    references = [
+        {
+            "title": "Systemic tail risk",
+            "authors": "van Oordt, M. R. C., & Zhou, C.",
+            "journal": "Journal of Financial and Quantitative Analysis",
+            "year": "2016",
+            "volume": "51(2)",
+            "pages": "685-705",
+            "doi": "10.1017/S0022109016000193"
+        },
+        {
+            "title": "Estimating systematic risk in the international banking sector with extreme value theory",
+            "authors": "van Oordt, M. R. C., & Zhou, C.",
+            "journal": "Journal of Empirical Finance",
+            "year": "2018", 
+            "volume": "47",
+            "pages": "1-13",
+            "doi": "10.1016/j.jempfin.2018.02.004"
+        },
+        {
+            "title": "An introduction to statistical modeling of extreme values",
+            "authors": "Coles, S.",
+            "journal": "Springer Series in Statistics",
+            "year": "2001",
+            "publisher": "Springer-Verlag London"
+        },
+        {
+            "title": "Extreme value theory for risk managers",
+            "authors": "McNeil, A. J.",
+            "journal": "Internal Modelling and CAD II",
+            "year": "1999",
+            "publisher": "Risk Books"
+        }
+    ]
+    
+    for i, ref in enumerate(references, 1):
+        st.markdown(f"**[{i}]** {ref['authors']} ({ref['year']}). *{ref['title']}*. {ref['journal']}")
+        if 'volume' in ref:
+            st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;Volume {ref['volume']}, pages {ref['pages']}")
+        if 'doi' in ref:
+            st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;DOI: {ref['doi']}")
+        st.markdown("")
+    
+    st.markdown("### 🔗 Methodological References")
+    
+    additional_refs = [
+        "Hill, B. M. (1975). A simple general approach to inference about the tail of a distribution. *Annals of Statistics*, 3(5), 1163-1174.",
+        "Pickands, J. (1975). Statistical inference using extreme order statistics. *Annals of Statistics*, 3(1), 119-131.",
+        "Joe, H. (1997). *Multivariate models and dependence concepts*. Chapman & Hall/CRC.",
+        "Embrechts, P., Klüppelberg, C., & Mikosch, T. (1997). *Modelling extremal events*. Springer-Verlag.",
+        "Adrian, T., & Brunnermeier, M. K. (2016). CoVaR. *American Economic Review*, 106(7), 1705-1741."
+    ]
+    
+    for ref in additional_refs:
+        st.markdown(f"- {ref}")
+    
+    st.markdown("### 📊 Data Sources")
     
     st.markdown("""
-    <div class="warning-box">
-    <h4>⚠️ Important Notes</h4>
-    <ul>
-    <li>Real data analysis requires internet connection</li>
-    <li>Data download may take several minutes</li>
-    <li>Some banks may have limited historical data</li>
-    <li>Results are based on weekly rolling windows</li>
-    </ul>
-    </div>
-    """, unsafe_allow_html=True)
+    - **Yahoo Finance**: Stock price data for G-SIBs and regional indices
+    - **Financial Stability Board**: G-SIB designation and classification
+    - **Basel Committee on Banking Supervision**: Regulatory frameworks
+    - **FRED Economic Data**: Macroeconomic control variables
+    """)
+    
+    st.markdown("### 🛠️ Software & Packages")
+    
+    software_list = [
+        "**Python 3.8+**: Core programming language",
+        "**Streamlit**: Web application framework", 
+        "**yfinance**: Yahoo Finance data API",
+        "**pandas**: Data manipulation and analysis",
+        "**numpy**: Numerical computing",
+        "**scipy**: Scientific computing and statistics",
+        "**scikit-learn**: Machine learning algorithms",
+        "**xgboost**: Gradient boosting framework",
+        "**matplotlib/seaborn**: Data visualization",
+        "**plotly**: Interactive visualizations"
+    ]
+    
+    for software in software_list:
+        st.markdown(f"- {software}")
+    
+    st.markdown("---")
+    
+    st.markdown("### 📞 Contact Information")
+    
+    st.markdown("""
+    For questions about the methodology or implementation:
+    
+    - **Research Paper**: "Systemic Risk in Global Banking Institutions" by R. Salhi
+    - **Implementation**: This Streamlit application
+    - **Technical Issues**: Check GitHub repository for updates and bug reports
+    """)
+    
+    st.markdown('<div class="methodology-section">', unsafe_allow_html=True)
+    st.markdown("""
+    ### ⚖️ Disclaimer
+    
+    This application is for research and educational purposes only. The systemic risk metrics 
+    and predictions should not be used for investment decisions or regulatory compliance 
+    without proper validation and expert review. Past performance does not guarantee future results.
+    """)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# Footer
-st.divider()
-st.markdown("""
-<div style="text-align: center; color: #666;">
-<p><strong>Extreme Value Theory Methodology</strong> | Built with Streamlit and Python</p>
-<p>This methodology provides a robust framework for measuring systemic risk in banking institutions.</p>
-</div>
-""", unsafe_allow_html=True)
+if __name__ == "__main__":
+    main()
