@@ -279,10 +279,19 @@ class BankingDataProcessor:
     # ACCURATE EVT FUNCTIONS
     def calculate_var(self, returns, alpha=0.95):
         """Calculate Value at Risk using empirical quantile"""
-        if len(returns) == 0 or returns.isna().all():
+        # Convert to pandas Series if it's a numpy array
+        if isinstance(returns, np.ndarray):
+            returns = pd.Series(returns)
+        
+        if len(returns) == 0 or (hasattr(returns, 'isna') and returns.isna().all()):
             return np.nan
         
-        clean_returns = returns.dropna()
+        # Clean the data
+        if hasattr(returns, 'dropna'):
+            clean_returns = returns.dropna()
+        else:
+            clean_returns = returns[~np.isnan(returns)] if len(returns) > 0 else returns
+        
         if len(clean_returns) == 0:
             return np.nan
             
@@ -291,10 +300,19 @@ class BankingDataProcessor:
     
     def hill_estimator(self, returns, threshold_quantile=0.95, min_excesses=10):
         """Accurate Hill estimator for tail index"""
+        # Convert to pandas Series if it's a numpy array
+        if isinstance(returns, np.ndarray):
+            returns = pd.Series(returns)
+        
         if len(returns) < min_excesses:
             return np.nan
+        
+        # Clean the data
+        if hasattr(returns, 'dropna'):
+            clean_returns = returns.dropna()
+        else:
+            clean_returns = returns[~np.isnan(returns)] if len(returns) > 0 else returns
             
-        clean_returns = returns.dropna()
         if len(clean_returns) < min_excesses:
             return np.nan
         
@@ -359,6 +377,12 @@ class BankingDataProcessor:
     
     def systemic_beta(self, bank_returns, market_returns, alpha=0.95):
         """Calculate systemic beta using accurate EVT methodology"""
+        # Convert to pandas Series if numpy arrays
+        if isinstance(bank_returns, np.ndarray):
+            bank_returns = pd.Series(bank_returns)
+        if isinstance(market_returns, np.ndarray):
+            market_returns = pd.Series(market_returns)
+            
         if len(bank_returns) != len(market_returns) or len(bank_returns) == 0:
             return np.nan
         
@@ -432,15 +456,19 @@ class BankingDataProcessor:
                 bank_returns = window_data[bank].dropna()
                 market_returns = window_data[market_col].dropna()
                 
-                # Ensure we have enough data
+                # Ensure we have enough data and convert to numpy arrays
                 if len(bank_returns) < 30 or len(market_returns) < 30:
                     continue
                 
+                # Convert to numpy arrays for consistent processing
+                bank_returns_array = bank_returns.values
+                market_returns_array = market_returns.values
+                
                 # Calculate metrics for 95% confidence
-                var_95 = self.calculate_var(bank_returns, alpha=0.95)
-                hill_95 = self.hill_estimator(bank_returns, threshold_quantile=0.95)
-                tau_95 = self.tail_dependence_coefficient(bank_returns, market_returns, threshold_quantile=0.95)
-                beta_95 = self.systemic_beta(bank_returns, market_returns, alpha=0.95)
+                var_95 = self.calculate_var(bank_returns_array, alpha=0.95)
+                hill_95 = self.hill_estimator(bank_returns_array, threshold_quantile=0.95)
+                tau_95 = self.tail_dependence_coefficient(bank_returns_array, market_returns_array, threshold_quantile=0.95)
+                beta_95 = self.systemic_beta(bank_returns_array, market_returns_array, alpha=0.95)
                 
                 results_95.append({
                     'Date': end_date,
@@ -453,10 +481,10 @@ class BankingDataProcessor:
                 })
                 
                 # Calculate metrics for 99% confidence
-                var_99 = self.calculate_var(bank_returns, alpha=0.99)
-                hill_99 = self.hill_estimator(bank_returns, threshold_quantile=0.99)
-                tau_99 = self.tail_dependence_coefficient(bank_returns, market_returns, threshold_quantile=0.99)
-                beta_99 = self.systemic_beta(bank_returns, market_returns, alpha=0.99)
+                var_99 = self.calculate_var(bank_returns_array, alpha=0.99)
+                hill_99 = self.hill_estimator(bank_returns_array, threshold_quantile=0.99)
+                tau_99 = self.tail_dependence_coefficient(bank_returns_array, market_returns_array, threshold_quantile=0.99)
+                beta_99 = self.systemic_beta(bank_returns_array, market_returns_array, alpha=0.99)
                 
                 results_99.append({
                     'Date': end_date,
