@@ -287,16 +287,25 @@ class BankingDataProcessor:
             return np.nan
 
         # Handle NaNs for both pandas and numpy objects
-        if hasattr(returns, 'isna'):
-            if returns.isna().all():
+        try:
+            if hasattr(returns, 'isna') and callable(getattr(returns, 'isna', None)):
+                if returns.isna().all():
+                    return np.nan
+            elif np.isnan(returns).all():
                 return np.nan
-        elif np.isnan(returns).all():
-            return np.nan
+        except (AttributeError, TypeError):
+            # Fallback to numpy check if pandas method fails
+            if np.isnan(returns).all():
+                return np.nan
         
         # Clean the data
-        if hasattr(returns, 'dropna'):
-            clean_returns = returns.dropna()
-        else:
+        try:
+            if hasattr(returns, 'dropna') and callable(getattr(returns, 'dropna', None)):
+                clean_returns = returns.dropna()
+            else:
+                clean_returns = returns[~np.isnan(returns)] if len(returns) > 0 else returns
+        except (AttributeError, TypeError):
+            # Fallback to numpy method
             clean_returns = returns[~np.isnan(returns)] if len(returns) > 0 else returns
         
         if len(clean_returns) == 0:
@@ -315,9 +324,13 @@ class BankingDataProcessor:
             return np.nan
         
         # Clean the data
-        if hasattr(returns, 'dropna'):
-            clean_returns = returns.dropna()
-        else:
+        try:
+            if hasattr(returns, 'dropna') and callable(getattr(returns, 'dropna', None)):
+                clean_returns = returns.dropna()
+            else:
+                clean_returns = returns[~np.isnan(returns)] if len(returns) > 0 else returns
+        except (AttributeError, TypeError):
+            # Fallback to numpy method
             clean_returns = returns[~np.isnan(returns)] if len(returns) > 0 else returns
             
         if len(clean_returns) < min_excesses:
