@@ -283,7 +283,14 @@ class BankingDataProcessor:
         if isinstance(returns, np.ndarray):
             returns = pd.Series(returns)
         
-        if len(returns) == 0 or (hasattr(returns, 'isna') and returns.isna().all()):
+        if len(returns) == 0:
+            return np.nan
+
+        # Handle NaNs for both pandas and numpy objects
+        if hasattr(returns, 'isna'):
+            if returns.isna().all():
+                return np.nan
+        elif np.isnan(returns).all():
             return np.nan
         
         # Clean the data
